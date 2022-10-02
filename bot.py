@@ -64,7 +64,7 @@ class ServerConnection():
         self.send_command(cmd)
 
     def join(self, channel, key):
-        cmd = self.command_format("JOIN", channel + " " + key)
+        cmd = self.command_format("JOIN", "#" + channel + " " + key)
         self.send_command(cmd)
 
     def listen(self):
