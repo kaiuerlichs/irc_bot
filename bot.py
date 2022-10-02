@@ -1,55 +1,102 @@
+""" A simple IRC bot that can connect to an IRC server using TCP-IP.
+
+The bot is able to establish a connection and respond to both channel and direct
+messages, providing useful functionality for server users.
+"""
+
 import argparse
 import socket
-from time import sleep
-import time
 
 
 class ServerConnectionError(Exception):
+    """ Is raised when the ServerConnection has an exception. """
     pass
 
+
 class ServerConnection():
+    """ Stores and maintains a connection to an IRC server.
+
+    Attributes:
+        host: The hostname of the IRC server, i.e. the IP address
+        port: The port on the server that the IRC server is running on
+        nickname: The nickname for the bot
+        channel: The channel for the bot to join and listen on
+        ip_version: The IP version to use
+        encoding: The binary encoding to use
+
+    Raises:
+        ServerConnectionError: When the connection to the server behaves unexpectedly
+    """
     sock = None
     connected = False
     
     def __init__(self, host="fc00:1337::17/96", port="6667", nickname="LudBot", channel="global", ip_version="6", encoding="utf-8"):
+        """ Inits a ServerConnection """
+
         self.host = host
         self.port = int(port)
         self.nickname = nickname
         self.channel = channel
         self.encoding = encoding
-
         self.addr_fam = socket.AF_INET if ip_version == 4 else socket.AF_INET6
     
     def connect(self):
+        """ Initialises the socket and connects it.
+
+        Raises:
+            ServerConnectionError: When the socket could not connect
+        """
+
+        # Close socket if already open
         if self.sock:
             print("[ServerConnection] Overriding previous socket setup.")
             self.sock.close()
         else:
             print("[ServerConnection] Initialising socket.")
 
+        # Initialise socket with correct protocol and address family
         self.sock = socket.socket(self.addr_fam, socket.SOCK_STREAM)
-
         print("[ServerConnection] Socket initialised in", self.addr_fam, "at address", self.host, "and port", self.port, ".")
 
+        # Open connection to server
         print("[ServerConnection] Attempting to connect socket.")
         try:
             self.sock.connect((self.host, self.port))
         except:
             raise ServerConnectionError("Could not connect to server.")
 
+        # Set connected to true
         print("[ServerConnection] Connection established successfully.")
         self.connected = True
 
     def command_format(self, command, message):
+        """ Format a command to send to the server.
+
+        Args:
+            command: The mesage command
+            message: The params for the command
+        """
+
         return command + " " + message + "\r\n"
 
     def send_command(self, command):
-        if not self.sock:
+        """ Sends a formatted command to the server using the correct encoding.
+
+        Args:
+            command: A formatted command to send (see self.command.format)
+
+        Raises:
+            ServerConnectionError: When the socket is not connected
+        """
+
+        if not self.connected:
             raise ServerConnectionError("Socket not connected.")
         
         self.sock.sendall(command.encode(self.encoding))
 
     def logon(self):
+        """ Handles the log-on sequence required to connect a client to the server. """
+
         self.nick(self.nickname)
         self.user(self.nickname, self.nickname)
         self.join(self.channel, "")
@@ -67,6 +114,12 @@ class ServerConnection():
         self.send_command(cmd)
 
     def listen(self):
+        """ Monitors the data sent by the server.
+
+        Raises:
+            ServerConnectionError: If the server closes the connection unexpectedly
+        """
+
         while self.connected:
             data = self.sock.recv(1024)
 
@@ -90,7 +143,6 @@ args = argparser.parse_args()
 
 # Initialise ServerConnection
 server = ServerConnection(args.host, args.port, args.name, args.channel)
-
 server.connect()
 server.logon()
 server.listen()
