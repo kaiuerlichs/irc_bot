@@ -40,6 +40,9 @@ class ServerConnection():
 
     def connect(self):
         self.sock_connect()
+        self.nick(self.nick)
+        self.user(self.nick, self.nick)
+        self.join(self.channel, "")
 
     def nick(self, nickname):
         cmd = self.command_format("NICK", nickname)
@@ -49,23 +52,19 @@ class ServerConnection():
         cmd = self.command_format("USER", username + " 0 * :" + realname)
         self.send_command(cmd)
 
+    def join(self, channel, key):
+        cmd = self.command_format("JOIN", channel + " " + key)
+        self.send_command(cmd)
+
     def command_format(self, command, message):
         return command + " " + message + "\r\n"
 
     def send_command(self, command):
-        if not sock:
+        if not self.sock:
             print("[ServerConnection] Socket not connected.")
             raise ServerConnectionError("Socket not connected.")
         
-        sock.sendall(command.encode(self.encoding))
-
-
-
-
-def prepare_message(message):
-    
-    bytes = message.encode("utf-8") + b'\r\n'
-    return bytes
+        self.sock.sendall(command.encode(self.encoding))
 
 
 # Parse command-line arguments
@@ -79,22 +78,8 @@ argparser.add_argument("--channel", "-c", default="global", help="The channel fo
 args = argparser.parse_args()
 
 
-# Initialise and connect socket
-sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-try:
-    print("Attempting connection to", args.host, "at port", args.port)
-    sock.connect((args.host, int(args.port)))
+# Initialise ServerConnection
+server = ServerConnection(args.host, args.port, args.name, args.channel)
 
-except:
-    print("Connection failed.")
-    quit()
-
-reg_string = ("NICK " + args.name).encode()
-reg_string += ("USER " + args.name + " 0 * :" + args.name).encode()
-
-sock.sendall(prepare_message("NICK " + args.name))
-sock.sendall(prepare_message("USER " + args.name + " 0 * :" + args.name))
-
-sleep(10)
-
-sock.close()
+server.setup()
+server.connect()
