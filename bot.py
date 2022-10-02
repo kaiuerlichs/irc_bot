@@ -1,6 +1,7 @@
 import argparse
 import socket
 from time import sleep
+import time
 
 
 class ServerConnectionError(Exception):
@@ -8,40 +9,50 @@ class ServerConnectionError(Exception):
 
 class ServerConnection():
     sock = None
+    connected = False
     
-    def __init__(self, host="fc00:1337::17/96", port="6667", nick="LudBot", channel="global", addr_fam="AF_INET6", encoding="utf-8"):
+    def __init__(self, host="fc00:1337::17/96", port="6667", nickname="LudBot", channel="global", ip_version="6", encoding="utf-8"):
         self.host = host
         self.port = int(port)
-        self.nick = nick
+        self.nickname = nickname
         self.channel = channel
-        self.addr_fam = addr_fam
         self.encoding = encoding
+
+        self.addr_fam = socket.AF_INET if ip_version == 4 else socket.AF_INET6
     
     def setup(self):
-        if sock:
+        if self.sock:
             print("[ServerConnection] Overriding previous socket setup.")
-            sock.close()
+            self.sock.close()
         else:
             print("[ServerConnection] Initialising socket.")
 
-        sock = socket.socket(self.addr_fam, socket.SOCK_STREAM)
-        sock.bind(self.host, self.port)
+        self.sock = socket.socket(self.addr_fam, socket.SOCK_STREAM)
 
         print("[ServerConnection] Socket initialised in", self.addr_fam, "at address", self.host, "and port", self.port, ".")
 
-    def sock_connect(self):
         print("[ServerConnection] Attempting to connect socket.")
         try:
-            self.sock.connect()
+            self.sock.connect((self.host, self.port))
         except:
             raise ServerConnectionError("Could not connect to server.")
 
         print("[ServerConnection] Connection established successfully.")
+        self.connected = True
+
+    def command_format(self, command, message):
+        return command + " " + message + "\r\n"
+
+    def send_command(self, command):
+        if not self.sock:
+            print("[ServerConnection] Socket not connected.")
+            raise ServerConnectionError("Socket not connected.")
+        
+        self.sock.sendall(command.encode(self.encoding))
 
     def connect(self):
-        self.sock_connect()
-        self.nick(self.nick)
-        self.user(self.nick, self.nick)
+        self.nick(self.nickname)
+        self.user(self.nickname, self.nickname)
         self.join(self.channel, "")
 
     def nick(self, nickname):
@@ -56,16 +67,15 @@ class ServerConnection():
         cmd = self.command_format("JOIN", channel + " " + key)
         self.send_command(cmd)
 
-    def command_format(self, command, message):
-        return command + " " + message + "\r\n"
+    def listen(self):
+        while self.connected:
+            data = self.sock.recv(1024)
 
-    def send_command(self, command):
-        if not self.sock:
-            print("[ServerConnection] Socket not connected.")
-            raise ServerConnectionError("Socket not connected.")
-        
-        self.sock.sendall(command.encode(self.encoding))
-
+            if not data:
+                self.connected = False
+                return
+            
+            print(data)
 
 # Parse command-line arguments
 argparser = argparse.ArgumentParser(description='Runs an IRC chat bot.')
@@ -83,3 +93,4 @@ server = ServerConnection(args.host, args.port, args.name, args.channel)
 
 server.setup()
 server.connect()
+server.listen()
