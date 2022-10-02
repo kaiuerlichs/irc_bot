@@ -45,7 +45,6 @@ class ServerConnection():
 
     def send_command(self, command):
         if not self.sock:
-            print("[ServerConnection] Socket not connected.")
             raise ServerConnectionError("Socket not connected.")
         
         self.sock.sendall(command.encode(self.encoding))
@@ -73,9 +72,10 @@ class ServerConnection():
 
             if not data:
                 self.connected = False
-                return
+                raise ServerConnectionError("Connection closed by server.")
             
             print(data)
+
 
 # Parse command-line arguments
 argparser = argparse.ArgumentParser(description='Runs an IRC chat bot.')
