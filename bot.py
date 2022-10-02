@@ -20,7 +20,7 @@ class ServerConnection():
 
         self.addr_fam = socket.AF_INET if ip_version == 4 else socket.AF_INET6
     
-    def setup(self):
+    def connect(self):
         if self.sock:
             print("[ServerConnection] Overriding previous socket setup.")
             self.sock.close()
@@ -50,7 +50,7 @@ class ServerConnection():
         
         self.sock.sendall(command.encode(self.encoding))
 
-    def connect(self):
+    def logon(self):
         self.nick(self.nickname)
         self.user(self.nickname, self.nickname)
         self.join(self.channel, "")
@@ -91,6 +91,6 @@ args = argparser.parse_args()
 # Initialise ServerConnection
 server = ServerConnection(args.host, args.port, args.name, args.channel)
 
-server.setup()
 server.connect()
+server.logon()
 server.listen()
