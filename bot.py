@@ -3,6 +3,65 @@ import socket
 from time import sleep
 
 
+class ServerConnectionError(Exception):
+    pass
+
+class ServerConnection():
+    sock = None
+    
+    def __init__(self, host="fc00:1337::17/96", port="6667", nick="LudBot", channel="global", addr_fam="AF_INET6", encoding="utf-8"):
+        self.host = host
+        self.port = int(port)
+        self.nick = nick
+        self.channel = channel
+        self.addr_fam = addr_fam
+        self.encoding = encoding
+    
+    def setup(self):
+        if sock:
+            print("[ServerConnection] Overriding previous socket setup.")
+            sock.close()
+        else:
+            print("[ServerConnection] Initialising socket.")
+
+        sock = socket.socket(self.addr_fam, socket.SOCK_STREAM)
+        sock.bind(self.host, self.port)
+
+        print("[ServerConnection] Socket initialised in", self.addr_fam, "at address", self.host, "and port", self.port, ".")
+
+    def sock_connect(self):
+        print("[ServerConnection] Attempting to connect socket.")
+        try:
+            self.sock.connect()
+        except:
+            raise ServerConnectionError("Could not connect to server.")
+
+        print("[ServerConnection] Connection established successfully.")
+
+    def connect(self):
+        self.sock_connect()
+
+    def nick(self, nickname):
+        cmd = self.command_format("NICK", nickname)
+        self.send_command(cmd)
+
+    def user(self, username, realname):
+        cmd = self.command_format("USER", username + " 0 * :" + realname)
+        self.send_command(cmd)
+
+    def command_format(self, command, message):
+        return command + " " + message + "\r\n"
+
+    def send_command(self, command):
+        if not sock:
+            print("[ServerConnection] Socket not connected.")
+            raise ServerConnectionError("Socket not connected.")
+        
+        sock.sendall(command.encode(self.encoding))
+
+
+
+
 def prepare_message(message):
     
     bytes = message.encode("utf-8") + b'\r\n'
