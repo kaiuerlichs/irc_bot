@@ -5,7 +5,7 @@ messages, providing useful functionality for server users.
 """
 
 
-from ast import match_case
+from ast import main, match_case
 import socket
 import utils.config_loader as config_loader
 import utils.parseargs as parseargs
@@ -191,14 +191,14 @@ class ServerConnection():
             
             self.handle_incoming(data)
 
+if __name__ == "__main__":
+    # Load config and parse command-line arguments
+    conf = config_loader.load("./config.json")
+    args = parseargs.parse(*conf)
 
-# Load config and parse command-line arguments
-conf = config_loader.load("./config.json")
-args = parseargs.parse(*conf)
 
-
-# Initialise ServerConnection
-server = ServerConnection(args.host, args.port, args.name, args.channel)
-server.connect()
-server.logon()
-server.listen()
+    # Initialise ServerConnection
+    server = ServerConnection(args.host, args.port, args.name, args.channel)
+    server.connect()
+    server.logon()
+    server.listen()
