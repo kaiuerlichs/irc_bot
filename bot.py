@@ -15,6 +15,13 @@ class ServerConnectionError(Exception):
     pass
 
 
+class Channel():
+    def __init__(self, name):
+        self.name = name
+        self.users = []
+
+
+
 class ServerConnection():
     """ Stores and maintains a connection to an IRC server.
 
@@ -114,6 +121,9 @@ class ServerConnection():
     def join(self, channel, key):
         cmd = self.command_format("JOIN", "#" + channel + " " + key)
         self.send_command(cmd)
+
+    def handle_incoming(self, message):
+        pass
 
     def listen(self):
         """ Monitors the data sent by the server.
