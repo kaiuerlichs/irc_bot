@@ -5,6 +5,7 @@ messages, providing useful functionality for server users.
 """
 
 
+from ast import match_case
 import socket
 import utils.config_loader as config_loader
 import utils.parseargs as parseargs
@@ -85,7 +86,7 @@ class ServerConnection():
             command: The mesage command
             message: The params for the command
         """
-
+        
         return command + " " + message + "\r\n"
 
     def send_command(self, command):
@@ -110,6 +111,7 @@ class ServerConnection():
         self.user(self.nickname, self.nickname)
         self.join(self.channel, "")
 
+    # COMMAND RUNNERS
     def nick(self, nickname):
         cmd = self.command_format("NICK", nickname)
         self.send_command(cmd)
@@ -122,8 +124,56 @@ class ServerConnection():
         cmd = self.command_format("JOIN", "#" + channel + " " + key)
         self.send_command(cmd)
 
-    def handle_incoming(self, message):
+    def pong(self, message):
+        cmd = self.command_format("PONG", message)
+        self.send_command(cmd)
+
+    def handle_incoming(self, data):
+        """ Takes incoming data and deconstructs it into commands and their parameters, then calls the correct command event handler
+
+        Args:
+            data: The data received from the server
+        """
+
+        # Decode data and split into separate command transmissions
+        transmissions = data.decode(self.encoding).split("\r\n")
+
+        for t in transmissions:
+            if t == "":
+                continue
+            
+            prefix = ""
+            command = ""
+            params = ""
+
+            # Check if command is prefixed or not
+            if t[0] == ":":
+                deconstructed = t.split(' ', 2)
+                prefix = deconstructed[0]
+                command = deconstructed[1]
+                if len(deconstructed) > 2:
+                    params = deconstructed[2]
+            else:
+                deconstructed=t.split(' ', 1)
+                command = deconstructed[0]
+                if len(deconstructed) > 1:
+                    params = deconstructed[1]
+
+            # Call event handler
+            match command:
+                case "JOIN":
+                    self.on_join(prefix, params)
+                case "PING":
+                    self.on_ping(params)
+                case _:
+                    print("Unknown command")
+
+    # COMMAND EVENT HANDLERS   
+    def on_join(self, prefix, params):
         pass
+
+    def on_ping(self, params):
+        self.pong(params)
 
     def listen(self):
         """ Monitors the data sent by the server.
@@ -139,7 +189,7 @@ class ServerConnection():
                 self.connected = False
                 raise ServerConnectionError("Connection closed by server.")
             
-            print(data)
+            self.handle_incoming(data)
 
 
 # Load config and parse command-line arguments
