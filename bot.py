@@ -104,29 +104,21 @@ class ServerConnection():
         
         self.sock.sendall(command.encode(self.encoding))
 
-    def logon(self):
-        """ Handles the log-on sequence required to connect a client to the server. """
+    def listen(self):
+        """ Monitors the data sent by the server.
 
-        self.nick(self.nickname)
-        self.user(self.nickname, self.nickname)
-        self.join(self.channel, "")
+        Raises:
+            ServerConnectionError: If the server closes the connection unexpectedly
+        """
 
-    # COMMAND RUNNERS
-    def nick(self, nickname):
-        cmd = self.command_format("NICK", nickname)
-        self.send_command(cmd)
+        while self.connected:
+            data = self.sock.recv(1024)
 
-    def user(self, username, realname):
-        cmd = self.command_format("USER", username + " 0 * :" + realname)
-        self.send_command(cmd)
-
-    def join(self, channel, key):
-        cmd = self.command_format("JOIN", "#" + channel + " " + key)
-        self.send_command(cmd)
-
-    def pong(self, message):
-        cmd = self.command_format("PONG", message)
-        self.send_command(cmd)
+            if not data:
+                self.connected = False
+                raise ServerConnectionError("Connection closed by server.")
+            
+            self.handle_incoming(data)
 
     def handle_incoming(self, data):
         """ Takes incoming data and deconstructs it into commands and their parameters, then calls the correct command event handler
@@ -166,30 +158,48 @@ class ServerConnection():
                 case "PING":
                     self.on_ping(params)
                 case _:
-                    print("Unknown command")
+                    print("Ignored " + command + " command from server, not implemented.")
 
-    # COMMAND EVENT HANDLERS   
+    # COMMAND RUNNERS (outgoing)
+    def nick(self, nickname):
+        cmd = self.command_format("NICK", nickname)
+        self.send_command(cmd)
+
+    def user(self, username, realname):
+        cmd = self.command_format("USER", username + " 0 * :" + realname)
+        self.send_command(cmd)
+
+    def join(self, channel, key):
+        cmd = self.command_format("JOIN", "#" + channel + " " + key)
+        self.send_command(cmd)
+
+    def pong(self, message):
+        cmd = self.command_format("PONG", message)
+        self.send_command(cmd)
+
+    def logon(self):
+        """ Handles the log-on sequence required to connect a client to the server. """
+
+        self.nick(self.nickname)
+        self.user(self.nickname, self.nickname)
+        self.join(self.channel, "")
+
+    # COMMAND EVENT HANDLERS (incoming)
     def on_join(self, prefix, params):
+        # Prefix is prefix for user joining current channel, params is channel name
+
+        # if prefix is self
+            # clear channel
+            # set new channel w/ empty user list
+            # (user list will be filled in subsequent commands)
+
+        # if prefix is not self
+            # add user to user list
         pass
 
     def on_ping(self, params):
         self.pong(params)
 
-    def listen(self):
-        """ Monitors the data sent by the server.
-
-        Raises:
-            ServerConnectionError: If the server closes the connection unexpectedly
-        """
-
-        while self.connected:
-            data = self.sock.recv(1024)
-
-            if not data:
-                self.connected = False
-                raise ServerConnectionError("Connection closed by server.")
-            
-            self.handle_incoming(data)
 
 if __name__ == "__main__":
     # Load config and parse command-line arguments
