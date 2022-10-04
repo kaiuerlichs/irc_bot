@@ -11,16 +11,34 @@ import utils.config_loader as config_loader
 import utils.parseargs as parseargs
 
 
+TEXT_MSG = "\033[96m"
+TEXT_LOG = "\033[93m"
+TEXT_RES = "\033[0m"
+
+
 class ServerConnectionError(Exception):
     """ Is raised when the ServerConnection has an exception. """
     pass
 
 
 class Channel():
+    name = ""
+    topic = ""
+    users = []
+
     def __init__(self, name):
         self.name = name
-        self.users = []
 
+    def addUser(self, user):
+        if user not in self.users:
+            self.users.append(user)
+
+    def removeUser(self, user):
+        if user in self.users:
+            self.users.remove(user)
+
+    def setTopic(self, topic):
+        self.topic = topic
 
 
 class ServerConnection():
@@ -39,6 +57,7 @@ class ServerConnection():
     """
     sock = None
     connected = False
+    currentChannel = None
     
     def __init__(self, host="fc00:1337::17/96", port="6667", nickname="LudBot", channel="global", ip_version="6", encoding="utf-8"):
         """ Inits a ServerConnection """
@@ -59,24 +78,24 @@ class ServerConnection():
 
         # Close socket if already open
         if self.sock:
-            print("[ServerConnection] Overriding previous socket setup.")
+            self.print_log("Overriding previous socket setup.")
             self.sock.close()
         else:
-            print("[ServerConnection] Initialising socket.")
+            self.print_log("Initialising socket.")
 
         # Initialise socket with correct protocol and address family
         self.sock = socket.socket(self.addr_fam, socket.SOCK_STREAM)
-        print("[ServerConnection] Socket initialised in", self.addr_fam, "at address", self.host, "and port", self.port, ".")
+        self.print_log("Socket initialised in " + str(self.addr_fam) + " at address " + str(self.host) + " and port " + str(self.port) + ".")
 
         # Open connection to server
-        print("[ServerConnection] Attempting to connect socket.")
+        self.print_log("Attempting to connect socket.")
         try:
             self.sock.connect((self.host, self.port))
         except:
             raise ServerConnectionError("Could not connect to server.")
 
         # Set connected to true
-        print("[ServerConnection] Connection established successfully.")
+        self.print_log("Connection established successfully.")
         self.connected = True
 
     def command_format(self, command, message):
@@ -157,8 +176,28 @@ class ServerConnection():
                     self.on_join(prefix, params)
                 case "PING":
                     self.on_ping(params)
+                case "001":
+                    self.on_rpl_welcome(params)
+                case "002":
+                    self.on_rpl_yourhost(params)
+                case "003":
+                    self.on_rpl_created(params)
+                case "004":
+                    self.on_rpl_myinfo(params)
+                case "331":
+                    self.on_rpl_notopic()
+                case "332":
+                    self.on_rpl_topic(params)
+                case "353":
+                    self.on_rpl_namreply(params)
                 case _:
-                    print("Ignored " + command + " command from server, not implemented.")
+                    self.print_log("Ignored " + command + " command from server, not implemented.")
+
+    def print_server_message(self, message):
+        print(TEXT_MSG + "[SERVER MESSAGE] " + TEXT_RES + message)
+
+    def print_log(self, message):
+        print(TEXT_LOG + "[LOG] " + TEXT_RES + message)
 
     # COMMAND RUNNERS (outgoing)
     def nick(self, nickname):
@@ -177,6 +216,9 @@ class ServerConnection():
         cmd = self.command_format("PONG", message)
         self.send_command(cmd)
 
+    def privmsg(self): 
+        pass
+
     def logon(self):
         """ Handles the log-on sequence required to connect a client to the server. """
 
@@ -186,35 +228,36 @@ class ServerConnection():
 
     # COMMAND EVENT HANDLERS (incoming)
     def on_join(self, prefix, params):
-        # :LudBot!LudBot@::1 JOIN #globa
-        # Prefix is prefix for user joining current channel, params is channel name
+        nick = prefix.split("!", 1)[0][1:] # Extract nickname from prefix
+        
+        if nick == self.nickname:
+            self.currentChannel = Channel(params[1:])
+            self.currentChannel.addUser(nick)
 
-        # if prefix is self
-            # clear channel
-            # set new channel w/ empty user list
-            # (user list will be filled in subsequent commands)
-
-        # if prefix is not self
-            # add user to user list
-        pass
+        else:
+            self.currentChannel.addUser(nick)
 
     def on_ping(self, params):
         self.pong(params)
 
-    def on_rpl_welcome(self): #001
+    def on_rpl_welcome(self, params): #001
+        
         # :KaisLaptop.localdomain 001 LudBot :Hi, welcome to IRC
-        pass
+        msg = params.split(':')[1]
+        self.print_server_message(msg)
+        
 
-    def on_rpl_yourhost(self): #002
+    def on_rpl_yourhost(self, params): #002
         # :KaisLaptop.localdomain 002 LudBot :Your host is KaisLaptop.localdomain, running version miniircd-2.1
-        pass
+        msg = params.split(':')[1]
+        self.print_server_message(msg)
 
-    def on_rpl_created(self): #003
+    def on_rpl_created(self, params): #003
         # :KaisLaptop.localdomain 003 LudBot :This server was created sometime
-        pass
+        msg = params.split(':')[1]
+        self.print_server_message(msg)
 
-    def on_rpl_myinfo(self): #004
-        # :KaisLaptop.localdomain 004 LudBot KaisLaptop.localdomain miniircd-2.1 o o
+    def on_rpl_myinfo(self, params): #004
         pass
 
     def on_rpl_luserclient(self): #251
@@ -235,16 +278,18 @@ class ServerConnection():
         pass
 
     def on_rpl_notopic(self): #331
-        # :KaisLaptop.localdomain 331 LudBot #global :No topic is set
-        pass
+        self.currentChannel.setTopic("")
 
-    def on_rpl_topic(self): #332
+    def on_rpl_topic(self, params): #332
         # :KaisLaptop.localdomain 331 LudBot #global :<topic>
-        pass
+        topic = params.split(":")[1]
+        self.currentChannel.setTopic(topic)
 
-    def on_rpl_namreply(self): #353
-        # :KaisLaptop.localdomain 353 LudBot = #global :LudBot
-        pass
+    def on_rpl_namreply(self, params): #353
+        users = params.split(":")[1].split(" ")
+        
+        for user in users:
+            self.currentChannel.addUser(user)
 
     def on_rpl_endofnames(self): #366
         # :KaisLaptop.localdomain 366 LudBot #global :End of NAMES list
