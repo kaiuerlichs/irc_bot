@@ -186,6 +186,7 @@ class ServerConnection():
 
     # COMMAND EVENT HANDLERS (incoming)
     def on_join(self, prefix, params):
+        # :LudBot!LudBot@::1 JOIN #globa
         # Prefix is prefix for user joining current channel, params is channel name
 
         # if prefix is self
@@ -199,6 +200,55 @@ class ServerConnection():
 
     def on_ping(self, params):
         self.pong(params)
+
+    def on_rpl_welcome(self): #001
+        # :KaisLaptop.localdomain 001 LudBot :Hi, welcome to IRC
+        pass
+
+    def on_rpl_yourhost(self): #002
+        # :KaisLaptop.localdomain 002 LudBot :Your host is KaisLaptop.localdomain, running version miniircd-2.1
+        pass
+
+    def on_rpl_created(self): #003
+        # :KaisLaptop.localdomain 003 LudBot :This server was created sometime
+        pass
+
+    def on_rpl_myinfo(self): #004
+        # :KaisLaptop.localdomain 004 LudBot KaisLaptop.localdomain miniircd-2.1 o o
+        pass
+
+    def on_rpl_luserclient(self): #251
+        # :KaisLaptop.localdomain 251 LudBot :There are 1 users and 0 services on 1 server
+        pass
+
+    def on_err_nomotd(self): #422
+        # :KaisLaptop.localdomain 422 LudBot :MOTD File is missing
+        pass
+
+    def on_rpl_motdstart(self): #375
+        pass
+
+    def on_rpl_motd(self): # 372
+        pass
+
+    def on_rpl_endofmotd(self): #376
+        pass
+
+    def on_rpl_notopic(self): #331
+        # :KaisLaptop.localdomain 331 LudBot #global :No topic is set
+        pass
+
+    def on_rpl_topic(self): #332
+        # :KaisLaptop.localdomain 331 LudBot #global :<topic>
+        pass
+
+    def on_rpl_namreply(self): #353
+        # :KaisLaptop.localdomain 353 LudBot = #global :LudBot
+        pass
+
+    def on_rpl_endofnames(self): #366
+        # :KaisLaptop.localdomain 366 LudBot #global :End of NAMES list
+        pass
 
 
 if __name__ == "__main__":
