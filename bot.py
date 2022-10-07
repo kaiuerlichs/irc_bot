@@ -5,12 +5,12 @@ messages, providing useful functionality for server users.
 """
 
 
-from ast import main, match_case
 import socket
 import utils.config_loader as config_loader
 import utils.parseargs as parseargs
 
 
+# Colours for message colouring
 TEXT_MSG = "\033[96m"
 TEXT_LOG = "\033[93m"
 TEXT_RES = "\033[0m"
@@ -22,6 +22,13 @@ class ServerConnectionError(Exception):
 
 
 class Channel():
+    """ A simple class to hold information about the current channel
+
+    Attributes:
+        name: The name of the channel
+        users: A set of all the users which are in the channel
+        topic: The topic given to each channel
+    """
     name = ""
     topic = ""
     users = []
@@ -236,6 +243,8 @@ class ServerConnection():
 
         else:
             self.currentChannel.addUser(nick)
+
+        print(self.currentChannel.users)
 
     def on_ping(self, params):
         self.pong(params)
