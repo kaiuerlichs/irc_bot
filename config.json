@@ -1,0 +1,6 @@
+{
+    "hostname": "fc00:1337::17/96",
+    "port": 6667,
+    "channel": "global",
+    "nickname": "LudBot"
+}
