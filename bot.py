@@ -44,7 +44,7 @@ class Channel():
         self.topic = topic
 
 
-class ServerConnection():
+class ServerConnection:
     """ Stores and maintains a connection to an IRC server.
 
     Attributes:
@@ -179,6 +179,8 @@ class ServerConnection():
                     self.on_join(prefix, params)
                 case "PING":
                     self.on_ping(params)
+                case "PRIVMSG":
+                    self.on_privmsg(prefix, params)
                 case "001":
                     self.on_rpl_welcome(params)
                 case "002":
@@ -196,6 +198,9 @@ class ServerConnection():
                 case _:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
+    def get_nick_from_prefix(self, prefix):
+        nick = prefix.split("!", 1)[0][1:]
+        return nick
 
     # COMMAND RUNNERS (outgoing)
     def nick(self, nickname):
@@ -214,8 +219,9 @@ class ServerConnection():
         cmd = self.command_format("PONG", message)
         self.send_command(cmd)
 
-    def privmsg(self): 
-        pass
+    def privmsg(self, target, message):
+        cmd = self.command_format("PRIVMSG", target + " :" + message)
+        self.send_command(cmd)
 
     def logon(self):
         """ Handles the log-on sequence required to connect a client to the server. """
@@ -226,7 +232,7 @@ class ServerConnection():
 
     # COMMAND EVENT HANDLERS (incoming)
     def on_join(self, prefix, params):
-        nick = prefix.split("!", 1)[0][1:] # Extract nickname from prefix
+        nick = self.get_nick_from_prefix(prefix) # Extract nickname from prefix
         
         if nick == self.nickname:
             self.currentChannel = Channel(params[1:])
@@ -238,12 +244,27 @@ class ServerConnection():
     def on_ping(self, params):
         self.pong(params)
 
+    def on_privmsg(self, prefix, params):
+        nick = self.get_nick_from_prefix(prefix)
+
+        tokens = params.split(":")
+        target = tokens[0].strip()
+        message = tokens[1]
+
+        if target[0] == "#":
+            if message[0] != "!":
+                return
+
+            if message.split(" ")[0][1:] == "hello":
+                self.privmsg(target, "Hello " + nick)
+            else:
+                self.privmsg(target, nick + ", I don't know this command.")
+
     def on_rpl_welcome(self, params): #001
         
         # :KaisLaptop.localdomain 001 LudBot :Hi, welcome to IRC
         msg = params.split(':')[1]
         logger.info(msg)
-        
 
     def on_rpl_yourhost(self, params): #002
         # :KaisLaptop.localdomain 002 LudBot :Your host is KaisLaptop.localdomain, running version miniircd-2.1
@@ -295,13 +316,22 @@ class ServerConnection():
 
 
 if __name__ == "__main__":
-    # Load config and parse command-line arguments
-    conf = config_loader.load("./config.json")
-    args = parseargs.parse(*conf)
+    try:
+        # Load config and parse command-line arguments
+        conf = config_loader.load("./config.json")
+        args = parseargs.parse(*conf)
 
 
-    # Initialise ServerConnection
-    server = ServerConnection(args.host, args.port, args.name, args.channel)
-    server.connect()
-    server.logon()
-    server.listen()
+        # Initialise ServerConnection
+        server = ServerConnection(args.host, args.port, args.name, args.channel)
+        server.connect()
+        server.logon()
+        server.listen()
+
+    except KeyboardInterrupt:
+        # Disconnect server here
+        logger.log("Shutdown.")
+
+    except ServerConnectionError:
+        # Handle top-level connection errors here
+        logger.log("Connection error.")

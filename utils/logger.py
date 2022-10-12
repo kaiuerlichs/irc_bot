@@ -5,8 +5,8 @@ COLOUR_YELLOW = "\u001b[33m"
 COLOUR_RESET = "\u001b[0m"
 
 
-def info(self, message):
+def info(message):
     print(COLOUR_CYAN + "[INFO] " + COLOUR_RESET + message)
 
-def log(self, message):
-    print(COLOUR_CYAN + "[LOG] " + COLOUR_RESET + message)
+def log(message):
+    print(COLOUR_YELLOW + "[LOG] " + COLOUR_RESET + message)
