@@ -267,8 +267,13 @@ class ServerConnection:
                 case "hello":
                     self.privmsg(target, "Hello " + nick)
                 case "joke":
-                    t = threading.Thread(target=self.send_channel_joke, args=(target, ))
-                    t.start()
+                    try:
+                        t = threading.Thread(target=self.send_channel_joke, args=(target, ))
+                        t.start()
+                    except jokes.APIException:
+                        self.privmsg(target, nick + ", I'm struggling to think of any jokes right now.")
+                case "slap":
+                    pass
                 case _:
                     self.privmsg(target, nick + ", I don't know this command.")
 
