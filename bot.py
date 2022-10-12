@@ -8,12 +8,7 @@ messages, providing useful functionality for server users.
 import socket
 import utils.config_loader as config_loader
 import utils.parseargs as parseargs
-
-
-# Colours for message colouring
-TEXT_MSG = "\033[96m"
-TEXT_LOG = "\033[93m"
-TEXT_RES = "\033[0m"
+import utils.logger as logger
 
 
 class ServerConnectionError(Exception):
@@ -85,24 +80,24 @@ class ServerConnection():
 
         # Close socket if already open
         if self.sock:
-            self.print_log("Overriding previous socket setup.")
+            logger.log("Overriding previous socket setup.")
             self.sock.close()
         else:
-            self.print_log("Initialising socket.")
+            logger.log("Initialising socket.")
 
         # Initialise socket with correct protocol and address family
         self.sock = socket.socket(self.addr_fam, socket.SOCK_STREAM)
-        self.print_log("Socket initialised in " + str(self.addr_fam) + " at address " + str(self.host) + " and port " + str(self.port) + ".")
+        logger.log("Socket initialised in " + str(self.addr_fam) + " at address " + str(self.host) + " and port " + str(self.port) + ".")
 
         # Open connection to server
-        self.print_log("Attempting to connect socket.")
+        logger.log("Attempting to connect socket.")
         try:
             self.sock.connect((self.host, self.port))
         except:
             raise ServerConnectionError("Could not connect to server.")
 
         # Set connected to true
-        self.print_log("Connection established successfully.")
+        logger.log("Connection established successfully.")
         self.connected = True
 
     def command_format(self, command, message):
@@ -198,13 +193,8 @@ class ServerConnection():
                 case "353":
                     self.on_rpl_namreply(params)
                 case _:
-                    self.print_log("Ignored " + command + " command from server, not implemented.")
+                    logger.log("Ignored " + command + " command from server, not implemented.")
 
-    def print_server_message(self, message):
-        print(TEXT_MSG + "[SERVER MESSAGE] " + TEXT_RES + message)
-
-    def print_log(self, message):
-        print(TEXT_LOG + "[LOG] " + TEXT_RES + message)
 
     # COMMAND RUNNERS (outgoing)
     def nick(self, nickname):
@@ -244,8 +234,6 @@ class ServerConnection():
         else:
             self.currentChannel.addUser(nick)
 
-        print(self.currentChannel.users)
-
     def on_ping(self, params):
         self.pong(params)
 
@@ -253,18 +241,18 @@ class ServerConnection():
         
         # :KaisLaptop.localdomain 001 LudBot :Hi, welcome to IRC
         msg = params.split(':')[1]
-        self.print_server_message(msg)
+        logger.info(msg)
         
 
     def on_rpl_yourhost(self, params): #002
         # :KaisLaptop.localdomain 002 LudBot :Your host is KaisLaptop.localdomain, running version miniircd-2.1
         msg = params.split(':')[1]
-        self.print_server_message(msg)
+        logger.info(msg)
 
     def on_rpl_created(self, params): #003
         # :KaisLaptop.localdomain 003 LudBot :This server was created sometime
         msg = params.split(':')[1]
-        self.print_server_message(msg)
+        logger.info(msg)
 
     def on_rpl_myinfo(self, params): #004
         pass
