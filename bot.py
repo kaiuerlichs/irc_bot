@@ -6,6 +6,8 @@ messages, providing useful functionality for server users.
 
 
 import socket
+import threading
+import time
 import utils.config_loader as config_loader
 import utils.parseargs as parseargs
 import utils.logger as logger
@@ -198,6 +200,12 @@ class ServerConnection:
                 case _:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
+    def send_channel_joke(self, channel):
+        (setup, punch) = jokes.get()
+        self.privmsg(channel, setup)
+        time.sleep(1.0)
+        self.privmsg(channel, punch)
+
     def get_nick_from_prefix(self, prefix):
         nick = prefix.split("!", 1)[0][1:]
         return nick
@@ -255,10 +263,14 @@ class ServerConnection:
             if message[0] != "!":
                 return
 
-            if message.split(" ")[0][1:] == "hello":
-                self.privmsg(target, "Hello " + nick)
-            else:
-                self.privmsg(target, nick + ", I don't know this command.")
+            match message.split(" ")[0][1:]:
+                case "hello":
+                    self.privmsg(target, "Hello " + nick)
+                case "joke":
+                    t = threading.Thread(target=self.send_channel_joke, args=(target, ))
+                    t.start()
+                case _:
+                    self.privmsg(target, nick + ", I don't know this command.")
 
     def on_rpl_welcome(self, params): #001
         
