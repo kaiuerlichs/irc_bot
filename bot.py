@@ -9,6 +9,7 @@ import socket
 import utils.config_loader as config_loader
 import utils.parseargs as parseargs
 import utils.logger as logger
+import utils.jokes as jokes
 
 
 class ServerConnectionError(Exception):
