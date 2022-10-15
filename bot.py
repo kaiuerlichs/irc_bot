@@ -6,10 +6,14 @@ messages, providing useful functionality for server users.
 
 
 import socket
+import threading
+import time
 import utils.config_loader as config_loader
 import utils.parseargs as parseargs
 import utils.logger as logger
 import utils.jokes as jokes
+import utils.facts as facts
+from datetime import datetime
 
 
 class ServerConnectionError(Exception):
@@ -43,8 +47,11 @@ class Channel():
     def setTopic(self, topic):
         self.topic = topic
 
+    def log_users(self):
+        logger.channel_info(self.name, self.topic, self.users)
 
-class ServerConnection():
+
+class ServerConnection:
     """ Stores and maintains a connection to an IRC server.
 
     Attributes:
@@ -179,6 +186,10 @@ class ServerConnection():
                     self.on_join(prefix, params)
                 case "PING":
                     self.on_ping(params)
+                case "PRIVMSG":
+                    self.on_privmsg(prefix, params)
+                case "QUIT":
+                    self.on_quit(prefix, params)
                 case "001":
                     self.on_rpl_welcome(params)
                 case "002":
@@ -196,6 +207,50 @@ class ServerConnection():
                 case _:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
+    def send_channel_joke(self, channel):
+        (setup, punch) = jokes.get()
+        self.privmsg(channel, setup)
+        time.sleep(1.0)
+        self.privmsg(channel, punch)
+
+    def send_private_fact(self, nick):
+        fact = facts.get()
+        self.privmsg(nick, fact)    
+
+    def send_hello(self, channel, nick):
+        now = datetime.now()
+        
+        current_hour = int(now.strftime("%H"))
+        greeting = ""
+
+        if current_hour >= 17:
+            greeting = "Bonsoir,"
+        elif current_hour >= 12:
+            greeting = "Bonne après-midi,"
+        else:
+            greeting = "Bon matin,"
+
+        message = greeting + " " + nick + ". It is " + now.strftime("%A") + " and the time is " + now.strftime("%H:%M:%S.")
+        
+        self.privmsg(channel, message)
+        
+    def slap(self, sender, msg, channel):
+        try:
+            user = msg.split(" ", 1)[1]
+        except:
+            slap = "OWWW! {} tried to use slap but with no target and a heavy fish, you've slapped yourself".format(sender)
+            self.privmsg(channel, slap)
+            
+        if user in self.currentChannel.users():
+            slap = "{} has slapped {} with a trout".format(sender, user)
+            self.privmsg(channel, slap)
+            
+        elif user not in self.currentChannel.users():
+            slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
+
+    def get_nick_from_prefix(self, prefix):
+        nick = prefix.split("!", 1)[0][1:]
+        return nick
 
     # COMMAND RUNNERS (outgoing)
     def nick(self, nickname):
@@ -214,8 +269,13 @@ class ServerConnection():
         cmd = self.command_format("PONG", message)
         self.send_command(cmd)
 
-    def privmsg(self): 
-        pass
+    def privmsg(self, target, message):
+        cmd = self.command_format("PRIVMSG", target + " :" + message)
+        self.send_command(cmd)
+
+    def quit(self):
+        cmd = self.command_format("QUIT", ":" + self.nickname + " is shutting down.")
+        self.send_command(cmd)
 
     def logon(self):
         """ Handles the log-on sequence required to connect a client to the server. """
@@ -224,9 +284,14 @@ class ServerConnection():
         self.user(self.nickname, self.nickname)
         self.join(self.channel, "")
 
+    def disconnect(self):
+        self.quit()
+        self.sock.shutdown(socket.SHUT_RD)
+        self.sock.close()
+
     # COMMAND EVENT HANDLERS (incoming)
     def on_join(self, prefix, params):
-        nick = prefix.split("!", 1)[0][1:] # Extract nickname from prefix
+        nick = self.get_nick_from_prefix(prefix) # Extract nickname from prefix
         
         if nick == self.nickname:
             self.currentChannel = Channel(params[1:])
@@ -235,23 +300,61 @@ class ServerConnection():
         else:
             self.currentChannel.addUser(nick)
 
+        self.currentChannel.log_users()
+
     def on_ping(self, params):
         self.pong(params)
 
-    def on_rpl_welcome(self, params): #001
+    def on_privmsg(self, prefix, params):
+        nick = self.get_nick_from_prefix(prefix)
+
+        tokens = params.split(":")
+        target = tokens[0].strip()
+        message = tokens[1]
+
+        # Remove channel membership prefixes (irrelevant to bot functionality)
+        target.replace("+", "")
+        target.replace("~", "")
+        target.replace("&", "")
+        target.replace("@", "")
+        target.replace("%", "")
         
-        # :KaisLaptop.localdomain 001 LudBot :Hi, welcome to IRC
+        # Channel message
+        if target[0] == "#":
+            if message[0] != "!":
+                return
+
+            match message.split(" ")[0][1:]:
+                case "hello":
+                    self.send_hello(target, nick)
+                case "joke":
+                    try:
+                        t = threading.Thread(target=self.send_channel_joke, args=(target, ))
+                        t.start()
+                    except jokes.APIException:
+                        self.privmsg(target, nick + ", I'm struggling to think of any jokes right now.")
+                case "slap":
+                    self.slap(nick, message)
+                case _:
+                    self.privmsg(target, nick + ", I don't know this command.")
+
+        # Private message
+        else:
+            try:
+                t = threading.Thread(target=self.send_private_fact, args=(nick, ))
+                t.start()
+            except facts.APIException:
+                self.privmsg(target, nick + ", I can't think of any interesting facts right now.")
+
+    def on_rpl_welcome(self, params): #001
         msg = params.split(':')[1]
         logger.info(msg)
-        
 
     def on_rpl_yourhost(self, params): #002
-        # :KaisLaptop.localdomain 002 LudBot :Your host is KaisLaptop.localdomain, running version miniircd-2.1
         msg = params.split(':')[1]
         logger.info(msg)
 
     def on_rpl_created(self, params): #003
-        # :KaisLaptop.localdomain 003 LudBot :This server was created sometime
         msg = params.split(':')[1]
         logger.info(msg)
 
@@ -259,11 +362,9 @@ class ServerConnection():
         pass
 
     def on_rpl_luserclient(self): #251
-        # :KaisLaptop.localdomain 251 LudBot :There are 1 users and 0 services on 1 server
         pass
 
     def on_err_nomotd(self): #422
-        # :KaisLaptop.localdomain 422 LudBot :MOTD File is missing
         pass
 
     def on_rpl_motdstart(self): #375
@@ -279,7 +380,6 @@ class ServerConnection():
         self.currentChannel.setTopic("")
 
     def on_rpl_topic(self, params): #332
-        # :KaisLaptop.localdomain 331 LudBot #global :<topic>
         topic = params.split(":")[1]
         self.currentChannel.setTopic(topic)
 
@@ -290,18 +390,33 @@ class ServerConnection():
             self.currentChannel.addUser(user)
 
     def on_rpl_endofnames(self): #366
-        # :KaisLaptop.localdomain 366 LudBot #global :End of NAMES list
         pass
+
+    def on_quit(self, prefix, params):
+        nick = self.get_nick_from_prefix(prefix)
+        self.currentChannel.removeUser(nick)
+        self.currentChannel.log_users()
+
 
 
 if __name__ == "__main__":
-    # Load config and parse command-line arguments
-    conf = config_loader.load("./config.json")
-    args = parseargs.parse(*conf)
+    try:
+        # Load config and parse command-line arguments
+        conf = config_loader.load("./config.json")
+        args = parseargs.parse(*conf)
 
 
-    # Initialise ServerConnection
-    server = ServerConnection(args.host, args.port, args.name, args.channel)
-    server.connect()
-    server.logon()
-    server.listen()
+        # Initialise ServerConnection
+        server = ServerConnection(args.host, args.port, args.name, args.channel)
+        server.connect()
+        server.logon()
+        server.listen()
+
+    except KeyboardInterrupt:
+        # Handle CTRL-C to shut down bot
+        server.disconnect()
+        logger.log("Bot has shut down.")
+
+    except ServerConnectionError:
+        # Handle top-level connection errors here
+        logger.log("Connection error.")
