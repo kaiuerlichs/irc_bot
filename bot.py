@@ -21,7 +21,7 @@ class ServerConnectionError(Exception):
     pass
 
 
-class Channel():
+class Channel:
     """ A simple class to hold information about the current channel
 
     Attributes:
@@ -36,15 +36,15 @@ class Channel():
     def __init__(self, name):
         self.name = name
 
-    def addUser(self, user):
+    def add_user(self, user):
         if user not in self.users:
             self.users.append(user)
 
-    def removeUser(self, user):
+    def remove_user(self, user):
         if user in self.users:
             self.users.remove(user)
 
-    def setTopic(self, topic):
+    def set_topic(self, topic):
         self.topic = topic
 
     def log_users(self):
@@ -189,7 +189,7 @@ class ServerConnection:
                 case "PRIVMSG":
                     self.on_privmsg(prefix, params)
                 case "QUIT":
-                    self.on_quit(prefix, params)
+                    self.on_quit(prefix)
                 case "001":
                     self.on_rpl_welcome(params)
                 case "002":
@@ -208,16 +208,22 @@ class ServerConnection:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
     def send_channel_joke(self, channel):
+        """ Handle joke channel message """
+        
         (setup, punch) = jokes.get()
         self.privmsg(channel, setup)
         time.sleep(1.0)
         self.privmsg(channel, punch)
 
     def send_private_fact(self, nick):
+        """ Handle fact private message """
+
         fact = facts.get()
         self.privmsg(nick, fact)    
 
     def send_hello(self, channel, nick):
+        """ Handle hello channel message """
+
         now = datetime.now()
         
         current_hour = int(now.strftime("%H"))
@@ -235,6 +241,8 @@ class ServerConnection:
         self.privmsg(channel, message)
         
     def slap(self, sender, msg, channel):
+        """ Handle slap channel message """
+
         try:
             user = msg.split(" ", 1)[1]
         except:
@@ -249,6 +257,8 @@ class ServerConnection:
             slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
 
     def get_nick_from_prefix(self, prefix):
+        """ Extract nickname from a user prefix """
+
         nick = prefix.split("!", 1)[0][1:]
         return nick
 
@@ -285,27 +295,36 @@ class ServerConnection:
         self.join(self.channel, "")
 
     def disconnect(self):
+        """ Handle disconnect sequence to ensure protocol-correct exit and correct shutdown of socket """
+
         self.quit()
         self.sock.shutdown(socket.SHUT_RD)
         self.sock.close()
 
     # COMMAND EVENT HANDLERS (incoming)
     def on_join(self, prefix, params):
-        nick = self.get_nick_from_prefix(prefix) # Extract nickname from prefix
+        """ Handle JOIN commands, log successful join or other incoming users"""
+
+        nick = self.get_nick_from_prefix(prefix)
         
+        # If self is joining
         if nick == self.nickname:
             self.currentChannel = Channel(params[1:])
-            self.currentChannel.addUser(nick)
+            self.currentChannel.add_user(nick)
 
+        # If new user is joining
         else:
-            self.currentChannel.addUser(nick)
+            self.currentChannel.add_user(nick)
 
         self.currentChannel.log_users()
 
     def on_ping(self, params):
+        """ Respond to ping message """
         self.pong(params)
 
     def on_privmsg(self, prefix, params):
+        """ Parses incoming messages and dispatches the correct event handler depending on context and command """
+
         nick = self.get_nick_from_prefix(prefix)
 
         tokens = params.split(":")
@@ -319,11 +338,14 @@ class ServerConnection:
         target.replace("@", "")
         target.replace("%", "")
         
-        # Channel message
+        # Message context is channel message
         if target[0] == "#":
+            # Message is not a command, ignore
             if message[0] != "!":
                 return
 
+            # Match command to list of valid commands
+            # Dispatch web-based event handlers on separate threads to ensure performance
             match message.split(" ")[0][1:]:
                 case "hello":
                     self.send_hello(target, nick)
@@ -338,7 +360,8 @@ class ServerConnection:
                 case _:
                     self.privmsg(target, nick + ", I don't know this command.")
 
-        # Private message
+        # Message context is private message
+        # Dispatch web-based event handlers on separate threads to ensure performance
         else:
             try:
                 t = threading.Thread(target=self.send_private_fact, args=(nick, ))
@@ -347,14 +370,20 @@ class ServerConnection:
                 self.privmsg(target, nick + ", I can't think of any interesting facts right now.")
 
     def on_rpl_welcome(self, params): #001
+        """ Logs welcome message from server to console"""
+
         msg = params.split(':')[1]
         logger.info(msg)
 
     def on_rpl_yourhost(self, params): #002
+        """ Logs host info from server to console """
+
         msg = params.split(':')[1]
         logger.info(msg)
 
     def on_rpl_created(self, params): #003
+        """ Logs server creation time to console """
+
         msg = params.split(':')[1]
         logger.info(msg)
 
@@ -377,26 +406,31 @@ class ServerConnection:
         pass
 
     def on_rpl_notopic(self): #331
-        self.currentChannel.setTopic("")
+        self.currentChannel.set_topic("")
 
     def on_rpl_topic(self, params): #332
+        """ Parses and sets the channel topic """
+
         topic = params.split(":")[1]
-        self.currentChannel.setTopic(topic)
+        self.currentChannel.set_topic(topic)
 
     def on_rpl_namreply(self, params): #353
+        """ Parses user list transmitted upon joining channel """
+
         users = params.split(":")[1].split(" ")
         
         for user in users:
-            self.currentChannel.addUser(user)
+            self.currentChannel.add_user(user)
 
     def on_rpl_endofnames(self): #366
         pass
 
-    def on_quit(self, prefix, params):
-        nick = self.get_nick_from_prefix(prefix)
-        self.currentChannel.removeUser(nick)
-        self.currentChannel.log_users()
+    def on_quit(self, prefix):
+        """ Removes leaving user from channel user list and logs the result """
 
+        nick = self.get_nick_from_prefix(prefix)
+        self.currentChannel.remove_user(nick)
+        self.currentChannel.log_users()
 
 
 if __name__ == "__main__":
@@ -419,4 +453,4 @@ if __name__ == "__main__":
 
     except ServerConnectionError:
         # Handle top-level connection errors here
-        logger.log("Connection error.")
+        logger.log("Could not establish connection to server.")
