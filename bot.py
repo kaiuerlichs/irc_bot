@@ -356,7 +356,7 @@ class ServerConnection:
                     except jokes.APIException:
                         self.privmsg(target, nick + ", I'm struggling to think of any jokes right now.")
                 case "slap":
-                    self.slap(nick, message)
+                    self.slap(nick, message, target)
                 case _:
                     self.privmsg(target, nick + ", I don't know this command.")
 
