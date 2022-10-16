@@ -245,16 +245,16 @@ class ServerConnection:
 
         try:
             user = msg.split(" ", 1)[1]
+
+            if user in self.currentChannel.users:
+                slap = "{} has slapped {} with a trout".format(sender, user)
+            else:
+                slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
+                
+            self.privmsg(channel, slap)
         except:
             slap = "OWWW! {} tried to use slap but with no target and a heavy fish, you've slapped yourself".format(sender)
             self.privmsg(channel, slap)
-            
-        if user in self.currentChannel.users():
-            slap = "{} has slapped {} with a trout".format(sender, user)
-            self.privmsg(channel, slap)
-            
-        elif user not in self.currentChannel.users():
-            slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
 
     def get_nick_from_prefix(self, prefix):
         """ Extract nickname from a user prefix """
