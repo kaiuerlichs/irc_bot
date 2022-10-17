@@ -465,3 +465,6 @@ if __name__ == "__main__":
     except ServerConnectionError:
         # Handle top-level connection errors here
         logger.log("Could not establish connection to server.")
+
+    except:
+        logger.log("An unexpected error has caused the bot to shut down.")
