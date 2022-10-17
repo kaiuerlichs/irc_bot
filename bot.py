@@ -204,6 +204,8 @@ class ServerConnection:
                     self.on_rpl_topic(params)
                 case "353":
                     self.on_rpl_namreply(params)
+                case "366":
+                    self.on_rpl_endofnames()
                 case _:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
@@ -246,7 +248,7 @@ class ServerConnection:
         try:
             user = msg.split(" ", 1)[1]
 
-            if user in self.currentChannel.users:
+            if user.lower() in [x.lower() for x in self.currentChannel.users]:
                 slap = "{} has slapped {} with a trout".format(sender, user)
             else:
                 slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
@@ -315,8 +317,7 @@ class ServerConnection:
         # If new user is joining
         else:
             self.currentChannel.add_user(nick)
-
-        self.currentChannel.log_users()
+            self.currentChannel.log_users()
 
     def on_ping(self, params):
         """ Respond to ping message """
@@ -423,7 +424,7 @@ class ServerConnection:
             self.currentChannel.add_user(user)
 
     def on_rpl_endofnames(self): #366
-        pass
+        self.currentChannel.log_users()
 
     def on_quit(self, prefix):
         """ Removes leaving user from channel user list and logs the result """
