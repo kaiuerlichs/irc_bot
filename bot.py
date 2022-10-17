@@ -197,7 +197,9 @@ class ServerConnection:
                 case "003":
                     self.on_rpl_created(params)
                 case "004":
-                    self.on_rpl_myinfo(params)
+                    self.on_rpl_myinfo()
+                case "251":
+                    self.on_rpl_luserclient()
                 case "331":
                     self.on_rpl_notopic()
                 case "332":
@@ -206,6 +208,14 @@ class ServerConnection:
                     self.on_rpl_namreply(params)
                 case "366":
                     self.on_rpl_endofnames()
+                case "422":
+                    self.on_err_nomotd()
+                case "372":
+                    self.on_rpl_motd()
+                case "375":
+                    self.on_rpl_motdstart()
+                case "376":
+                    self.on_rpl_endofmotd()
                 case _:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
@@ -388,7 +398,7 @@ class ServerConnection:
         msg = params.split(':')[1]
         logger.info(msg)
 
-    def on_rpl_myinfo(self, params): #004
+    def on_rpl_myinfo(self): #004
         pass
 
     def on_rpl_luserclient(self): #251
