@@ -259,15 +259,23 @@ class ServerConnection:
 
         try:
             user = msg.split(" ", 1)[1]
-
             if user.lower() in [x.lower() for x in self.currentChannel.users]:
                 slap = "{} has slapped {} with a trout".format(sender, user)
+               
             else:
                 slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
+              
                 
             self.privmsg(channel, slap)
         except:
-            user = random.choice(self.currentChannel.users)
+            
+            tmpList = self.currentChannel.users
+            if sender in tmpList:
+           
+                tmpList.remove(sender)
+            
+            user = random.choice(tmpList)
+         
             slap = "{} has slapped {} with a trout".format(sender, user)
             self.privmsg(channel, slap)
 
