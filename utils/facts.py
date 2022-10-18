@@ -9,7 +9,7 @@ class APIException(Exception):
 
 def get():
     try:
-        res = requests.get(API_URL, headers={'X-Api-Key': API_KEY})
+        res = requests.get(API_URL, headers={'X-Api-Key': API_KEY}, timeout=10)
         res.raise_for_status()
     except:
         raise APIException("Could not retrieve joke")

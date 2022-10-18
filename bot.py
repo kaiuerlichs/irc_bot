@@ -269,7 +269,7 @@ class ServerConnection:
             self.privmsg(channel, slap)
         except:
             
-            tmpList = self.currentChannel.users
+            tmpList = [x for x in self.currentChannel.users]
             if sender in tmpList:
            
                 tmpList.remove(sender)
