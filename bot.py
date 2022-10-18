@@ -4,7 +4,7 @@ The bot is able to establish a connection and respond to both channel and direct
 messages, providing useful functionality for server users.
 """
 
-
+import random
 import socket
 import threading
 import time
@@ -188,6 +188,8 @@ class ServerConnection:
                     self.on_ping(params)
                 case "PRIVMSG":
                     self.on_privmsg(prefix, params)
+                case "PART":
+                    self.on_part(prefix)
                 case "QUIT":
                     self.on_quit(prefix)
                 case "001":
@@ -265,7 +267,8 @@ class ServerConnection:
                 
             self.privmsg(channel, slap)
         except:
-            slap = "OWWW! {} tried to use slap but with no target and a heavy fish, you've slapped yourself".format(sender)
+            user = random.choice(self.currentChannel.users)
+            slap = "{} has slapped {} with a trout".format(sender, user)
             self.privmsg(channel, slap)
 
     def get_nick_from_prefix(self, prefix):
@@ -332,6 +335,11 @@ class ServerConnection:
     def on_ping(self, params):
         """ Respond to ping message """
         self.pong(params)
+    
+    def on_part(self, prefix):
+        nick = self.get_nick_from_prefix(prefix)
+        self.currentChannel.remove_user(nick)
+        self.currentChannel.log_users()
 
     def on_privmsg(self, prefix, params):
         """ Parses incoming messages and dispatches the correct event handler depending on context and command """
