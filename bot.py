@@ -197,13 +197,25 @@ class ServerConnection:
                 case "003":
                     self.on_rpl_created(params)
                 case "004":
-                    self.on_rpl_myinfo(params)
+                    self.on_rpl_myinfo()
+                case "251":
+                    self.on_rpl_luserclient()
                 case "331":
                     self.on_rpl_notopic()
                 case "332":
                     self.on_rpl_topic(params)
                 case "353":
                     self.on_rpl_namreply(params)
+                case "366":
+                    self.on_rpl_endofnames()
+                case "422":
+                    self.on_err_nomotd()
+                case "372":
+                    self.on_rpl_motd()
+                case "375":
+                    self.on_rpl_motdstart()
+                case "376":
+                    self.on_rpl_endofmotd()
                 case _:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
@@ -245,16 +257,16 @@ class ServerConnection:
 
         try:
             user = msg.split(" ", 1)[1]
+
+            if user.lower() in [x.lower() for x in self.currentChannel.users]:
+                slap = "{} has slapped {} with a trout".format(sender, user)
+            else:
+                slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
+                
+            self.privmsg(channel, slap)
         except:
             slap = "OWWW! {} tried to use slap but with no target and a heavy fish, you've slapped yourself".format(sender)
             self.privmsg(channel, slap)
-            
-        if user in self.currentChannel.users():
-            slap = "{} has slapped {} with a trout".format(sender, user)
-            self.privmsg(channel, slap)
-            
-        elif user not in self.currentChannel.users():
-            slap = "{} has tried to slap {} with a trout but sadly trouts can't hit imaginary friends".format(sender, user)
 
     def get_nick_from_prefix(self, prefix):
         """ Extract nickname from a user prefix """
@@ -315,8 +327,7 @@ class ServerConnection:
         # If new user is joining
         else:
             self.currentChannel.add_user(nick)
-
-        self.currentChannel.log_users()
+            self.currentChannel.log_users()
 
     def on_ping(self, params):
         """ Respond to ping message """
@@ -356,7 +367,7 @@ class ServerConnection:
                     except jokes.APIException:
                         self.privmsg(target, nick + ", I'm struggling to think of any jokes right now.")
                 case "slap":
-                    self.slap(nick, message)
+                    self.slap(nick, message, target)
                 case _:
                     self.privmsg(target, nick + ", I don't know this command.")
 
@@ -387,7 +398,7 @@ class ServerConnection:
         msg = params.split(':')[1]
         logger.info(msg)
 
-    def on_rpl_myinfo(self, params): #004
+    def on_rpl_myinfo(self): #004
         pass
 
     def on_rpl_luserclient(self): #251
@@ -423,7 +434,7 @@ class ServerConnection:
             self.currentChannel.add_user(user)
 
     def on_rpl_endofnames(self): #366
-        pass
+        self.currentChannel.log_users()
 
     def on_quit(self, prefix):
         """ Removes leaving user from channel user list and logs the result """
@@ -454,3 +465,6 @@ if __name__ == "__main__":
     except ServerConnectionError:
         # Handle top-level connection errors here
         logger.log("Could not establish connection to server.")
+
+    except:
+        logger.log("An unexpected error has caused the bot to shut down.")
