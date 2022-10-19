@@ -69,7 +69,7 @@ class ServerConnection:
     connected = False
     currentChannel = None
     
-    def __init__(self, host="fc00:1337::17/96", port="6667", nickname="LudBot", channel="global", ip_version="6", encoding="utf-8"):
+    def __init__(self, host="fc00:1337::17", port="6667", nickname="LudBot", channel="global", ip_version="6", encoding="utf-8"):
         """ Inits a ServerConnection """
 
         self.host = host
@@ -218,6 +218,8 @@ class ServerConnection:
                     self.on_rpl_motdstart()
                 case "376":
                     self.on_rpl_endofmotd()
+                case "433":
+                    self.on_err_nicknameinuse()
                 case _:
                     logger.log("Ignored " + command + " command from server, not implemented.")
 
@@ -459,28 +461,62 @@ class ServerConnection:
         self.currentChannel.remove_user(nick)
         self.currentChannel.log_users()
 
+    def on_err_nicknameinuse(self): #433
+        if self.nickname == "LudBot":
+            self.nickname = "LudBot1"
+            self.logon()
+
+        else:
+            num = int(self.nickname[6:])
+            if num > 99:
+                logger.log("All nicknames in use. Shutting down.")
+                self.disconnect()
+                quit()
+            
+            self.nickname = "LudBot" + str(num+1)
+            self.logon()
+
 
 if __name__ == "__main__":
-    try:
-        # Load config and parse command-line arguments
-        conf = config_loader.load("./config.json")
-        args = parseargs.parse(*conf)
+    connected = False
+    connection_count = 0
+
+    while connection_count < 3:
+        try:
+            # Load config and parse command-line arguments
+            conf = config_loader.load("./config.json")
+            args = parseargs.parse(*conf)
 
 
-        # Initialise ServerConnection
-        server = ServerConnection(args.host, args.port, args.name, args.channel)
-        server.connect()
-        server.logon()
-        server.listen()
+            # Initialise ServerConnection
+            server = ServerConnection(args.host, args.port, args.name, args.channel)
+            server.connect()
 
-    except KeyboardInterrupt:
-        # Handle CTRL-C to shut down bot
-        server.disconnect()
-        logger.log("Bot has shut down.")
+            connected = True
 
-    except ServerConnectionError:
-        # Handle top-level connection errors here
-        logger.log("Could not establish connection to server.")
+            server.logon()
+            server.listen()
 
-    except:
-        logger.log("An unexpected error has caused the bot to shut down.")
+        except KeyboardInterrupt:
+            # Handle CTRL-C to shut down bot
+            server.disconnect()
+            logger.log("Bot has shut down.")
+
+        except ServerConnectionError:
+            if connected:
+                connected = False
+                connection_count = 0
+
+            if connection_count < 2:
+                # Handle top-level connection errors here
+                connection_count += 1
+                logger.log("Could not establish connection to server. Attempting again in 5 seconds... \n")
+                time.sleep(5)
+
+            else:
+                # Handle top-level connection errors here
+                connection_count += 1
+                logger.log("Could not establish connection to server after 3 attempts. Bot shut down.")
+
+        except:
+            logger.log("An unexpected error has caused the bot to shut down.")
