@@ -501,6 +501,7 @@ if __name__ == "__main__":
             # Handle CTRL-C to shut down bot
             server.disconnect()
             logger.log("Bot has shut down.")
+            quit()
 
         except ServerConnectionError:
             if connected:
