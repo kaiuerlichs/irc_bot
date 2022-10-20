@@ -515,6 +515,8 @@ class ServerConnection:
 
 
     def on_err_nicknameinuse(self): #433
+        """ Adjust nickname if default is already in use """
+
         if self.nickname == "LudBot":
             self.nickname = "LudBot1"
             self.logon()
@@ -534,6 +536,7 @@ if __name__ == "__main__":
     connected = False
     connection_count = 0
 
+    # Attempt connection three times
     while connection_count < 3:
         try:
             # Load config and parse command-line arguments
