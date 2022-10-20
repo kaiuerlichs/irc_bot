@@ -1,3 +1,5 @@
+""" Retrieves fun facts from an API """
+
 import requests
 
 LIMIT = 1

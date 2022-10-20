@@ -2,13 +2,10 @@
 
 import requests
 
-
 class APIException(Exception):
     pass
 
-
 API_URL = "https://official-joke-api.appspot.com/jokes/programming/random"
-
 
 def get():
     try:

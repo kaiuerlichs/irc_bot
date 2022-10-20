@@ -5,7 +5,6 @@ COLOUR_YELLOW = "\u001b[33m"
 COLOUR_MAGENTA = "\u001b[35m"
 COLOUR_RESET = "\u001b[0m"
 
-
 def info(message):
     print(COLOUR_CYAN + "[INFO] " + COLOUR_RESET + message)
 
